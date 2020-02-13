@@ -20,7 +20,10 @@ import com.google.gson.JsonParser;
 
 import edu.wpi.cscore.MjpegServer;
 import edu.wpi.cscore.UsbCamera;
+import edu.wpi.cscore.VideoMode;
 import edu.wpi.cscore.VideoSource;
+import edu.wpi.cscore.CvSink;
+import edu.wpi.cscore.CvSource;
 import edu.wpi.first.cameraserver.CameraServer;
 import edu.wpi.first.networktables.EntryListenerFlags;
 import edu.wpi.first.networktables.NetworkTable;
@@ -28,6 +31,10 @@ import edu.wpi.first.networktables.NetworkTableInstance;
 import edu.wpi.first.vision.VisionThread;
 
 import org.opencv.core.KeyPoint;
+import org.opencv.core.Mat;
+import org.opencv.core.MatOfKeyPoint;
+import org.opencv.core.Scalar;
+import org.opencv.features2d.Features2d;
 
 /*
    JSON format:
@@ -94,6 +101,9 @@ public final class Main {
   public static List<CameraConfig> cameraConfigs = new ArrayList<>();
   public static List<SwitchedCameraConfig> switchedCameraConfigs = new ArrayList<>();
   public static List<VideoSource> cameras = new ArrayList<>();
+
+  public static CvSink inputSink;
+  public static CvSource outputSource;
 
   public static NetworkTable table;
   public static int width = 320;
@@ -301,12 +311,34 @@ public final class Main {
   //   }
   // }
 
-  public static double calculateDistance(double yOffset) {
-    return Math.abs(verticalOffset / Math.tan(Math.toRadians(angleOffset + yOffset))) - horizontalOffset;
+  /**
+   * calculates straight line distance in 3d space
+   * @param yOffset degrees offset in y direction
+   * @param xOffset degrees offset in x direction
+   * @return distance
+   */
+  public static double calculateDistance(double yOffset, double xOffset) {
+    return (Math.abs(verticalOffset / Math.tan(Math.toRadians(angleOffset + yOffset))) - horizontalOffset) / Math.cos(Math.toRadians(xOffset));
   }
 
   public static double calculateAngle(double pixelOffset, double fov, double width) {
     return pixelOffset * fov / width;
+  }
+
+  public static void annotateImage(MatOfKeyPoint keypoints) {
+    Mat inputMat = new Mat();
+    Mat outputMat = new Mat();
+    inputSink.setSource(cameras.get(0));
+    inputSink.grabFrame(inputMat);
+    Features2d.drawKeypoints(inputMat, keypoints, outputMat, new Scalar(0.0, 255, 0.0), Features2d.DRAW_RICH_KEYPOINTS);
+    outputSource.putFrame(outputMat);
+  }
+
+  public static void initCameraServer() {
+    System.out.println("setting up output server");
+    inputSink = new CvSink("sink");
+    inputSink.setSource(cameras.get(0));
+    outputSource = CameraServer.getInstance().putVideo("annotated", width, height);
   }
 
   /**
@@ -316,6 +348,7 @@ public final class Main {
     if (args.length > 0) {
       configFile = args[0];
     }
+
 
     // read configuration
     if (!readConfig()) {
@@ -337,34 +370,44 @@ public final class Main {
       cameras.add(startCamera(config));
     }
 
+
     // start switched cameras
     for (SwitchedCameraConfig config : switchedCameraConfigs) {
       startSwitchedCamera(config);
     }
 
     // start image processing on camera 0 if present
-    if (cameras.size() >= 1) {
+    if (cameras.size() >= 1) {    
+      initCameraServer();
       VisionThread visionThread = new VisionThread(cameras.get(0),
               new BallPipeline(), pipeline -> {
+                annotateImage(pipeline.findBlobsOutput());
                 int i = 0;
+                double dist = 100.0;
+                int closest = 100;
                 table = ntinst.getTable("ball table");
                 table.getSubTable("info");
                 for (KeyPoint point : pipeline.findBlobsOutput().toList()) {
                   i++;
                   double x = calculateAngle(point.pt.x - width / 2, horizontalFOV, width);
                   double y = calculateAngle(-(point.pt.y - height / 2), horizontalFOV, height);
-                  table.getEntry("ball " + i).setDoubleArray(
-                    new double[]{x, y, calculateDistance(y), point.size});
+                  if (dist >= calculateDistance(y, x)) {
+                    dist = calculateDistance(y, x);
+                    closest = i;
+                  }
+                  table.getEntry("ball " + i).setDoubleArray(new double[]{x, y, calculateDistance(y, x), point.size});
                 }
-                if (i < table.getEntry("targets").getDouble(0.0)) {
-                  for (i++ ; i < table.getEntry("targets").getDouble(0.0) ; i++) {
+                if (i < table.getSubTable("info").getEntry("targets").getDouble(0.0)) {
+                  for (i++ ; i <= table.getEntry("targets").getDouble(0.0) ; i++) {
                     table.delete("ball " + i);
                   }
                 }
 
                 table.getSubTable("info").getEntry("targets").setDouble(table.getKeys().size());
                 table.getSubTable("info").getEntry("has target").setBoolean(table.getKeys().size() != 0.0);
-
+                if (table.getKeys().size() != 0.0 && closest != 100) {
+                  table.getSubTable("info").getEntry("closest target").setString("ball " + closest);
+                }
         // do something with pipeline results
       });
       /* something like this for GRIP:

@@ -4,8 +4,6 @@ import java.io.IOException;
 
 
 import org.opencv.core.*;
-import org.opencv.features2d.Feature2D;
-import org.opencv.features2d.FeatureDetector;
 import org.opencv.features2d.SimpleBlobDetector;
 import org.opencv.imgproc.*;
 
