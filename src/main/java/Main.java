@@ -6,6 +6,8 @@
 /*----------------------------------------------------------------------------*/
 
 import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -20,7 +22,6 @@ import com.google.gson.JsonParser;
 
 import edu.wpi.cscore.MjpegServer;
 import edu.wpi.cscore.UsbCamera;
-import edu.wpi.cscore.VideoMode;
 import edu.wpi.cscore.VideoSource;
 import edu.wpi.cscore.CvSink;
 import edu.wpi.cscore.CvSource;
@@ -29,6 +30,9 @@ import edu.wpi.first.networktables.EntryListenerFlags;
 import edu.wpi.first.networktables.NetworkTable;
 import edu.wpi.first.networktables.NetworkTableInstance;
 import edu.wpi.first.vision.VisionThread;
+import edu.wpi.first.wpilibj.geometry.Pose2d;
+import edu.wpi.first.wpilibj.geometry.Rotation2d;
+import edu.wpi.first.wpilibj.geometry.Translation2d;
 
 import org.opencv.core.KeyPoint;
 import org.opencv.core.Mat;
@@ -317,8 +321,16 @@ public final class Main {
    * @param xOffset degrees offset in x direction
    * @return distance
    */
-  public static double calculateDistance(double yOffset, double xOffset) {
-    return (Math.abs(verticalOffset / Math.tan(Math.toRadians(angleOffset + yOffset))) - horizontalOffset) / Math.cos(Math.toRadians(xOffset));
+  public static double distance(double yOffset, double xOffset) {
+    return forwardDistance(yOffset) / Math.cos(Math.toRadians(xOffset));
+  }
+
+  public static double horizontalDistance(double forwardDist, double xOffset) {
+    return forwardDist * Math.tan(Math.toRadians(xOffset));
+  }
+
+  public static double forwardDistance(double yOffset) {
+    return Math.abs(verticalOffset / Math.tan(Math.toRadians(angleOffset + yOffset)))- horizontalOffset;
   }
 
   public static double calculateAngle(double pixelOffset, double fov, double width) {
@@ -389,13 +401,16 @@ public final class Main {
                 table.getSubTable("info");
                 for (KeyPoint point : pipeline.findBlobsOutput().toList()) {
                   i++;
-                  double x = calculateAngle(point.pt.x - width / 2, horizontalFOV, width);
-                  double y = calculateAngle(-(point.pt.y - height / 2), horizontalFOV, height);
-                  if (dist >= calculateDistance(y, x)) {
-                    dist = calculateDistance(y, x);
+                  double xDeg = calculateAngle(point.pt.x - width / 2, horizontalFOV, width);
+                  double yDeg = calculateAngle(-(point.pt.y - height / 2), horizontalFOV, height);
+                  double x = forwardDistance(yDeg); //forward is x and sideways is y i think
+                  double y = horizontalDistance(x, xDeg);
+                  if (dist >= distance(yDeg, xDeg)) {
+                    dist = distance(yDeg, xDeg);
                     closest = i;
                   }
-                  table.getEntry("ball " + i).setDoubleArray(new double[]{x, y, calculateDistance(y, x), point.size});
+                  //sends a double array for each ball that goes xDeg, yDeg, distance, x, y, size
+                  table.getEntry("ball " + i).setDoubleArray(new double[]{xDeg, yDeg, distance(yDeg, xDeg), x, y, point.size});
                 }
                 if (i < table.getSubTable("info").getEntry("targets").getDouble(0.0)) {
                   for (i++ ; i <= table.getEntry("targets").getDouble(0.0) ; i++) {

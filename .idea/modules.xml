@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectModuleManager">
+    <modules>
+      <module fileurl="file://$PROJECT_DIR$/java-multiCameraServer.iml" filepath="$PROJECT_DIR$/java-multiCameraServer.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/java-multiCameraServer.main.iml" filepath="$PROJECT_DIR$/.idea/modules/java-multiCameraServer.main.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/java-multiCameraServer.test.iml" filepath="$PROJECT_DIR$/.idea/modules/java-multiCameraServer.test.iml" />
+    </modules>
+  </component>
+</project>

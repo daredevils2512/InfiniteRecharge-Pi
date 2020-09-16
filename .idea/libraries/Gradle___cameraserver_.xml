@@ -1,0 +1,9 @@
+<component name="libraryTable">
+  <library name="Gradle: :cameraserver:">
+    <CLASSES>
+      <root url="jar://$PROJECT_DIR$/cameraserver.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>
