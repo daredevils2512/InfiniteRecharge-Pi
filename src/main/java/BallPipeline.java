@@ -43,7 +43,8 @@ public class BallPipeline implements VisionPipeline {
 		double[] hsvThresholdHue = {21.043165467625897, 35.86089364648239};
 		double[] hsvThresholdSaturation = {94.64165955371294, 219.1476274165202};
 		double[] hsvThresholdValue = {82.6619213104093, 255.0};
-		hsvThreshold(hsvThresholdInput, hsvThresholdHue, hsvThresholdSaturation, hsvThresholdValue, hsvThresholdOutput);
+		//hsvThreshold(hsvThresholdInput, hsvThresholdHue, hsvThresholdSaturation, hsvThresholdValue, hsvThresholdOutput);
+		hsvThreshold(hsvThresholdInput, new double[]{hsvThresholdHue[0], hsvThresholdHue[1]}, new double[]{hsvThresholdSaturation[0], hsvThresholdSaturation[1]}, new double[]{hsvThresholdValue[0], hsvThresholdValue[1]}, hsvThresholdOutput);
 
 		// Step CV_dilate0:
 		Mat cvDilateSrc = hsvThresholdOutput;

@@ -297,7 +297,6 @@ public final class Main {
               }
             },
             EntryListenerFlags.kImmediate | EntryListenerFlags.kNew | EntryListenerFlags.kUpdate);
-
     return server;
   }
 
@@ -366,14 +365,7 @@ public final class Main {
     }
 
     // start NetworkTables
-    NetworkTableInstance ntinst = NetworkTableInstance.getDefault();
-    if (server) {
-      System.out.println("Setting up NetworkTables server");
-      ntinst.startServer();
-    } else {
-      System.out.println("Setting up NetworkTables client for team " + team);
-      ntinst.startClientTeam(team);
-    }
+   NTManager ntManager = new NTManager(server, team);
 
     // start cameras
     for (CameraConfig config : cameraConfigs) {
